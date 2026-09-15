@@ -1,0 +1,6 @@
+{
+  "name": "Daily Work Manager",
+  "description": "Plan, record, manage, monitor, and report your daily work with real database persistence, reminders, productivity analytics, and automated reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
