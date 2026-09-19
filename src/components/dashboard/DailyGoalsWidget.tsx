@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import confetti from 'canvas-confetti';
 import {
   Target,
   CheckCircle2,
@@ -41,6 +42,10 @@ export const DailyGoalsWidget: React.FC<DailyGoalsWidgetProps> = ({ date = '2026
   const [slotTaskId, setSlotTaskId] = useState<string>('');
   const [showTaskSelector, setShowTaskSelector] = useState(false);
 
+  // Track goal ID undergoing completion pulse animation
+  const [pulsingGoalId, setPulsingGoalId] = useState<string | null>(null);
+  const pulseTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Available tasks for today that can be linked
   const todayTasks = tasks.filter((t) => t.dueDate === date);
 
@@ -49,6 +54,66 @@ export const DailyGoalsWidget: React.FC<DailyGoalsWidgetProps> = ({ date = '2026
     { slot: 2, label: 'Objective 2', tag: 'High Impact', defaultPriority: 'High' as Priority },
     { slot: 3, label: 'Objective 3', tag: 'Core Outcome', defaultPriority: 'Medium' as Priority },
   ];
+
+  const triggerConfetti = (e?: React.MouseEvent<HTMLElement>) => {
+    try {
+      let origin = { x: 0.5, y: 0.5 };
+      if (e && e.currentTarget) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        origin = {
+          x: (rect.left + rect.width / 2) / window.innerWidth,
+          y: (rect.top + rect.height / 2) / window.innerHeight,
+        };
+      }
+
+      // Single objective completed celebration confetti
+      confetti({
+        particleCount: 45,
+        spread: 55,
+        startVelocity: 25,
+        origin,
+        colors: ['#4f46e5', '#10b981', '#f59e0b', '#3b82f6', '#ec4899'],
+        ticks: 200,
+        gravity: 1.1,
+        scalar: 0.85,
+        disableForReducedMotion: true,
+      });
+
+      // If this completion achieves all 3 goals, shoot grand celebratory burst
+      if (completedGoalsCount + 1 >= 3 && dateGoals.length >= 3) {
+        setTimeout(() => {
+          confetti({
+            particleCount: 80,
+            spread: 90,
+            origin: { x: 0.5, y: 0.4 },
+            colors: ['#10b981', '#6366f1', '#fbbf24', '#38bdf8', '#a855f7'],
+            ticks: 250,
+            disableForReducedMotion: true,
+          });
+        }, 220);
+      }
+    } catch {
+      // Fallback gracefully if canvas context is restricted
+    }
+  };
+
+  const handleToggleComplete = async (goal: DailyGoalItem, e: React.MouseEvent<HTMLButtonElement>) => {
+    const isNowCompleting = !goal.isCompleted;
+
+    if (isNowCompleting) {
+      // Trigger pulse animation
+      setPulsingGoalId(goal.id);
+      if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
+      pulseTimerRef.current = setTimeout(() => {
+        setPulsingGoalId(null);
+      }, 1200);
+
+      // Trigger celebratory confetti
+      triggerConfetti(e);
+    }
+
+    await toggleDailyGoalComplete(goal.id);
+  };
 
   const handleStartEdit = (slot: number, currentGoal?: DailyGoalItem) => {
     setEditingSlot(slot);
@@ -311,16 +376,28 @@ export const DailyGoalsWidget: React.FC<DailyGoalsWidgetProps> = ({ date = '2026
           }
 
           if (goal) {
+            const isPulsing = pulsingGoalId === goal.id;
+
             return (
               <div
                 key={slot}
                 id={`daily-goal-slot-${slot}`}
-                className={`p-4 rounded-2xl border transition-all flex flex-col justify-between relative group ${
-                  isDone
-                    ? 'bg-slate-50/70 dark:bg-slate-900/40 border-slate-200/70 dark:border-slate-800/70 opacity-80'
+                className={`p-4 rounded-2xl border transition-all duration-300 flex flex-col justify-between relative group ${
+                  isPulsing
+                    ? 'scale-[1.02] ring-2 ring-emerald-500/70 dark:ring-emerald-400/70 shadow-lg shadow-emerald-500/15 bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700'
+                    : isDone
+                    ? 'bg-slate-50/70 dark:bg-slate-900/40 border-slate-200/70 dark:border-slate-800/70 opacity-85'
                     : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-xs hover:border-indigo-300 dark:hover:border-indigo-900'
                 }`}
               >
+                {/* Celebratory floating badge on complete */}
+                {isPulsing && (
+                  <div className="absolute -top-2.5 right-4 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold shadow-md flex items-center gap-1 animate-bounce z-10 pointer-events-none">
+                    <Sparkles className="w-3 h-3 text-amber-300 animate-spin" />
+                    <span>Accomplished!</span>
+                  </div>
+                )}
+
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -351,20 +428,22 @@ export const DailyGoalsWidget: React.FC<DailyGoalsWidgetProps> = ({ date = '2026
                     <button
                       id={`daily-goal-check-${slot}`}
                       type="button"
-                      onClick={() => toggleDailyGoalComplete(goal.id)}
-                      className={`mt-0.5 w-5 h-5 rounded-lg border flex items-center justify-center transition-all shrink-0 ${
-                        isDone
-                          ? 'bg-emerald-500 border-emerald-500 text-white'
-                          : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500 text-transparent'
+                      onClick={(e) => handleToggleComplete(goal, e)}
+                      className={`mt-0.5 w-5 h-5 rounded-lg border flex items-center justify-center transition-all duration-200 shrink-0 ${
+                        isPulsing
+                          ? 'scale-125 bg-emerald-500 border-emerald-500 text-white ring-4 ring-emerald-400/40 shadow-sm'
+                          : isDone
+                          ? 'bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600'
+                          : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500 text-transparent hover:scale-105 active:scale-95'
                       }`}
                       title={isDone ? 'Mark as pending' : 'Mark as completed'}
                     >
-                      <Check className="w-3.5 h-3.5" />
+                      <Check className={`w-3.5 h-3.5 transition-transform duration-200 ${isPulsing ? 'scale-110' : ''}`} />
                     </button>
 
                     <div className="flex-1 min-w-0">
                       <p
-                        className={`text-xs font-semibold leading-snug break-words ${
+                        className={`text-xs font-semibold leading-snug break-words transition-all duration-200 ${
                           isDone
                             ? 'line-through text-slate-400 dark:text-slate-500'
                             : 'text-slate-900 dark:text-white'
@@ -393,7 +472,7 @@ export const DailyGoalsWidget: React.FC<DailyGoalsWidgetProps> = ({ date = '2026
                   </span>
 
                   <span
-                    className={`font-semibold flex items-center gap-1 ${
+                    className={`font-semibold flex items-center gap-1 transition-colors duration-200 ${
                       isDone
                         ? 'text-emerald-600 dark:text-emerald-400'
                         : 'text-slate-400'
