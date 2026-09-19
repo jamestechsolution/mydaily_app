@@ -20,6 +20,7 @@ import {
   CategoryItem,
   UserProfile,
 } from '../types';
+import { offlineSync } from '../services/offlineSync';
 
 export const DEFAULT_CATEGORIES: CategoryItem[] = [
   { id: 'cat-work', name: 'Work', color: '#3b82f6', isDefault: true },
@@ -97,7 +98,7 @@ export class WorkStorageService {
     }
   }
 
-  // Save single item
+  // Save single item with optimistic local caching + offline sync queuing
   async saveItem<T extends { id: string }>(subPath: string, item: T): Promise<void> {
     // 1. Cache in local storage first for optimistic instant updates
     try {
@@ -110,32 +111,54 @@ export class WorkStorageService {
         existing.push(item);
       }
       localStorage.setItem(key, JSON.stringify(existing));
-    } catch {}
+    } catch (e) {
+      console.error('Failed to cache item locally:', e);
+    }
 
-    // 2. Update Firestore
+    // 2. If offline or simulated offline, enqueue for background sync
+    const status = offlineSync.getStatus(this.userId);
+    if (!status.isOnline) {
+      offlineSync.enqueue(this.userId, subPath, 'save', item.id, item);
+      return;
+    }
+
+    // 3. Attempt cloud persistence; if network error occurs, enqueue for later sync
     try {
       const docRef = doc(db, 'users', this.userId, subPath, item.id);
       await setDoc(docRef, item, { merge: true });
     } catch (e) {
-      // Data is safely persisted in local layer
+      console.warn(`Firestore save error on ${subPath}/${item.id}, enqueued for offline sync:`, e);
+      offlineSync.enqueue(this.userId, subPath, 'save', item.id, item);
     }
   }
 
-  // Delete single item
+  // Delete single item with optimistic local removal + offline sync queuing
   async deleteItem(subPath: string, id: string): Promise<void> {
-    try {
-      const docRef = doc(db, 'users', this.userId, subPath, id);
-      await deleteDoc(docRef);
-    } catch (e) {
-      console.warn(`Firestore delete error on ${subPath}:`, e);
-    }
-
+    // 1. Remove from local storage first
     try {
       const key = `dwm_${this.userId}_${subPath}`;
       const existing = JSON.parse(localStorage.getItem(key) || '[]');
       const filtered = existing.filter((x: any) => x.id !== id);
       localStorage.setItem(key, JSON.stringify(filtered));
-    } catch {}
+    } catch (e) {
+      console.error('Failed to delete item locally:', e);
+    }
+
+    // 2. If offline, enqueue deletion
+    const status = offlineSync.getStatus(this.userId);
+    if (!status.isOnline) {
+      offlineSync.enqueue(this.userId, subPath, 'delete', id);
+      return;
+    }
+
+    // 3. Attempt cloud deletion
+    try {
+      const docRef = doc(db, 'users', this.userId, subPath, id);
+      await deleteDoc(docRef);
+    } catch (e) {
+      console.warn(`Firestore delete error on ${subPath}/${id}, enqueued for offline sync:`, e);
+      offlineSync.enqueue(this.userId, subPath, 'delete', id);
+    }
   }
 
   // Initialize default categories for user workspace
@@ -147,7 +170,7 @@ export class WorkStorageService {
 
   // Clear all data
   async clearAllData(): Promise<void> {
-    const collections = ['tasks', 'projects', 'reminders', 'notes', 'reports', 'categories'];
+    const collections = ['tasks', 'projects', 'reminders', 'notes', 'reports', 'categories', 'daily_goals'];
     for (const sub of collections) {
       try {
         const colRef = collection(db, 'users', this.userId, sub);

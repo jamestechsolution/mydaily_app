@@ -12,6 +12,7 @@ import {
   TaskStatus,
   Priority,
   StopwatchState,
+  DailyGoalItem,
 } from '../types';
 import { WorkStorageService, DEFAULT_CATEGORIES } from '../lib/storage';
 import { notificationAudio } from '../lib/audio';
@@ -33,6 +34,7 @@ interface WorkContextType {
   reminders: ReminderItem[];
   notes: NoteItem[];
   reports: DailyReportItem[];
+  dailyGoals: DailyGoalItem[];
   categories: CategoryItem[];
   notifications: AppNotification[];
   filters: FilterOptions;
@@ -62,6 +64,12 @@ interface WorkContextType {
   updateNote: (id: string, updates: Partial<NoteItem>) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
   togglePinNote: (id: string) => Promise<void>;
+  // Daily Goal operations
+  setDailyGoal: (slotNumber: number, title: string, date?: string, priority?: Priority, taskId?: string) => Promise<void>;
+  updateDailyGoal: (id: string, updates: Partial<DailyGoalItem>) => Promise<void>;
+  toggleDailyGoalComplete: (id: string) => Promise<void>;
+  deleteDailyGoal: (id: string) => Promise<void>;
+  clearDailyGoalsForDate: (date: string) => Promise<void>;
   // Category operations
   addCategory: (name: string, color: string) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
@@ -113,6 +121,7 @@ export const WorkProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [reminders, setReminders] = useState<ReminderItem[]>([]);
   const [notes, setNotes] = useState<NoteItem[]>([]);
   const [reports, setReports] = useState<DailyReportItem[]>([]);
+  const [dailyGoals, setDailyGoals] = useState<DailyGoalItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>(DEFAULT_CATEGORIES);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
@@ -233,6 +242,10 @@ export const WorkProvider: React.FC<{ children: React.ReactNode }> = ({ children
       storageService.subscribeCollection<DailyReportItem>('reports', (items) => {
         setReports(items);
       }, 'reports'),
+
+      storageService.subscribeCollection<DailyGoalItem>('daily_goals', (items) => {
+        setDailyGoals(items);
+      }, 'daily_goals'),
 
       storageService.subscribeCollection<CategoryItem>('categories', (items) => {
         if (items.length > 0) {
@@ -566,6 +579,115 @@ export const WorkProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await updateNote(id, { isPinned: !note.isPinned });
   };
 
+  // Daily Goal operations (up to 3 high-impact objectives per day)
+  const setDailyGoal = async (
+    slotNumber: number,
+    title: string,
+    date: string = '2026-09-15',
+    priority: Priority = 'High',
+    taskId?: string
+  ) => {
+    const trimmed = title.trim();
+    const existing = dailyGoals.find((g) => g.date === date && g.slotNumber === slotNumber);
+
+    if (!trimmed) {
+      if (existing) {
+        await storageService.deleteItem('daily_goals', existing.id);
+      }
+      return;
+    }
+
+    const now = new Date().toISOString();
+    if (existing) {
+      const updated: DailyGoalItem = {
+        ...existing,
+        title: trimmed,
+        priority: priority || existing.priority || 'High',
+        taskId: taskId !== undefined ? taskId : existing.taskId,
+        updatedAt: now,
+      };
+      await storageService.saveItem('daily_goals', updated);
+    } else {
+      const id = `goal-${date}-${slotNumber}-${Date.now()}`;
+      const newGoal: DailyGoalItem = {
+        id,
+        userId,
+        date,
+        slotNumber,
+        title: trimmed,
+        isCompleted: false,
+        priority: priority || 'High',
+        taskId,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await storageService.saveItem('daily_goals', newGoal);
+    }
+  };
+
+  const updateDailyGoal = async (id: string, updates: Partial<DailyGoalItem>) => {
+    const existing = dailyGoals.find((g) => g.id === id);
+    if (!existing) return;
+
+    const updated: DailyGoalItem = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    await storageService.saveItem('daily_goals', updated);
+  };
+
+  const toggleDailyGoalComplete = async (id: string) => {
+    const goal = dailyGoals.find((g) => g.id === id);
+    if (!goal) return;
+
+    const isNowCompleted = !goal.isCompleted;
+    const now = new Date().toISOString();
+
+    if (isNowCompleted && (profile?.notificationPreferences?.soundEnabled ?? true)) {
+      notificationAudio.playSuccess();
+    }
+
+    const updated: DailyGoalItem = {
+      ...goal,
+      isCompleted: isNowCompleted,
+      completedAt: isNowCompleted ? now : undefined,
+      updatedAt: now,
+    };
+
+    await storageService.saveItem('daily_goals', updated);
+
+    // If all 3 goals for this date are completed, trigger celebration notification
+    if (isNowCompleted) {
+      const dayGoals = dailyGoals
+        .map((g) => (g.id === id ? updated : g))
+        .filter((g) => g.date === goal.date);
+      const totalCompleted = dayGoals.filter((g) => g.isCompleted).length;
+      if (dayGoals.length >= 3 && totalCompleted === 3) {
+        const notif: AppNotification = {
+          id: `goal-celebrate-${Date.now()}`,
+          title: 'Daily Goals Completed! 🎯',
+          message: 'You have achieved all 3 high-impact objectives today. Exceptional focus!',
+          timestamp: now,
+          type: 'achievement',
+          read: false,
+        };
+        setNotifications((prev) => [notif, ...prev]);
+      }
+    }
+  };
+
+  const deleteDailyGoal = async (id: string) => {
+    await storageService.deleteItem('daily_goals', id);
+  };
+
+  const clearDailyGoalsForDate = async (date: string) => {
+    const toDelete = dailyGoals.filter((g) => g.date === date);
+    for (const g of toDelete) {
+      await storageService.deleteItem('daily_goals', g.id);
+    }
+  };
+
   // Category methods
   const addCategory = async (name: string, color: string) => {
     const id = `cat-${Date.now()}`;
@@ -596,6 +718,7 @@ export const WorkProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setReminders([]);
     setNotes([]);
     setReports([]);
+    setDailyGoals([]);
     setNotifications([]);
   };
 
@@ -613,7 +736,7 @@ export const WorkProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const startStopwatch = async (taskId?: string) => {
-    const targetId = taskId || stopwatch.taskId;
+    const targetId = taskId || stopwatch.taskId || (tasks.find((t) => t.status !== 'Completed')?.id || tasks[0]?.id || null);
     const now = Date.now();
 
     if (targetId) {
@@ -625,7 +748,7 @@ export const WorkProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setStopwatch((prev) => ({
-      taskId: targetId || prev.taskId,
+      taskId: targetId,
       status: 'running',
       elapsedSeconds: targetId && targetId !== prev.taskId && taskId ? 0 : prev.elapsedSeconds,
       lastTickTimestamp: now,
@@ -669,28 +792,72 @@ export const WorkProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastTickTimestamp: null,
     });
 
-    if (!targetTaskId || seconds < 5) {
+    if (seconds <= 0) {
       return null;
     }
 
-    const task = tasks.find((t) => t.id === targetTaskId);
-    if (!task) return null;
+    // Calculate actual minutes tracked (at least 1 minute for any active session)
+    const minutesToAdd = seconds < 60 ? 1 : Math.max(1, Math.round(seconds / 60));
 
-    // Calculate actual minutes tracked (at least 1 minute)
-    const minutesToAdd = Math.max(1, Math.round(seconds / 60));
-    const currentActual = task.actualMinutes || 0;
-    const newActualMinutes = currentActual + minutesToAdd;
+    let finalTaskId = targetTaskId;
+    let finalTaskTitle = 'Tracked Work Session';
 
-    const updates: Partial<TaskItem> = {
-      actualMinutes: newActualMinutes,
-    };
+    if (finalTaskId) {
+      const existing = tasks.find((t) => t.id === finalTaskId);
+      if (existing) {
+        finalTaskTitle = existing.title;
+        const currentActual = existing.actualMinutes || 0;
+        const newActualMinutes = currentActual + minutesToAdd;
 
-    if (markCompleted) {
-      updates.status = 'Completed';
-      updates.completedAt = new Date().toISOString();
+        const updates: Partial<TaskItem> = {
+          actualMinutes: newActualMinutes,
+        };
+
+        if (markCompleted) {
+          updates.status = 'Completed';
+          updates.completedAt = new Date().toISOString();
+        }
+
+        await updateTask(finalTaskId, updates);
+      }
+    } else {
+      // If no task was selected, link to first pending task or create one
+      const candidateTask = tasks.find((t) => t.status !== 'Completed') || tasks[0];
+      if (candidateTask) {
+        finalTaskId = candidateTask.id;
+        finalTaskTitle = candidateTask.title;
+        const currentActual = candidateTask.actualMinutes || 0;
+        const newActualMinutes = currentActual + minutesToAdd;
+
+        const updates: Partial<TaskItem> = {
+          actualMinutes: newActualMinutes,
+        };
+
+        if (markCompleted) {
+          updates.status = 'Completed';
+          updates.completedAt = new Date().toISOString();
+        }
+
+        await updateTask(candidateTask.id, updates);
+      } else {
+        // Fresh workspace with 0 tasks: auto-create task with tracked time
+        const todayStr = new Date().toISOString().split('T')[0];
+        finalTaskId = await addTask({
+          categoryId: categories[0]?.id || 'cat-general',
+          title: 'Tracked Work Session',
+          description: `Logged from stopwatch timer (${seconds}s).`,
+          priority: 'Medium',
+          status: markCompleted ? 'Completed' : 'In Progress',
+          startDate: todayStr,
+          startTime: '09:00',
+          dueDate: todayStr,
+          dueTime: '17:00',
+          estimatedMinutes: Math.max(30, minutesToAdd),
+          actualMinutes: minutesToAdd,
+          tags: ['stopwatch', 'work'],
+        });
+      }
     }
-
-    await updateTask(targetTaskId, updates);
 
     // Play chime sound if enabled
     if (profile?.notificationPreferences?.soundEnabled ?? true) {
@@ -701,7 +868,7 @@ export const WorkProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const notif: AppNotification = {
       id: `notif-${Date.now()}`,
       title: 'Actual Time Logged',
-      message: `Added ${minutesToAdd}m to "${task.title}". Total actual time: ${newActualMinutes}m.`,
+      message: `Added ${minutesToAdd}m actual time to "${finalTaskTitle}".`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       type: 'achievement',
       read: false,
@@ -710,7 +877,7 @@ export const WorkProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return {
       minutesSaved: minutesToAdd,
-      taskTitle: task.title,
+      taskTitle: finalTaskTitle,
     };
   };
 
@@ -724,6 +891,7 @@ export const WorkProvider: React.FC<{ children: React.ReactNode }> = ({ children
         reminders,
         notes,
         reports,
+        dailyGoals,
         categories,
         notifications,
         filters,
@@ -748,6 +916,11 @@ export const WorkProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateNote,
         deleteNote,
         togglePinNote,
+        setDailyGoal,
+        updateDailyGoal,
+        toggleDailyGoalComplete,
+        deleteDailyGoal,
+        clearDailyGoalsForDate,
         addCategory,
         deleteCategory,
         markNotificationRead,

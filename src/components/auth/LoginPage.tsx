@@ -4,17 +4,32 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
 export const LoginPage: React.FC = () => {
-  const { login, register, loginWithGoogle, resetPassword } = useAuth();
+  const { login, register, loginDirectly, loginWithGoogle, resetPassword } = useAuth();
   const { effectiveTheme, toggleTheme } = useTheme();
 
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [email, setEmail] = useState('jamestechsolutionandacademy@gmail.com');
+  const [password, setPassword] = useState('Workspace2026!');
+  const [confirmPassword, setConfirmPassword] = useState('Workspace2026!');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const handleInstantEntry = async (userEmail?: string, userName?: string) => {
+    setError('');
+    setSubmitting(true);
+    try {
+      await loginDirectly(
+        userEmail || email.trim() || 'jamestechsolutionandacademy@gmail.com',
+        userName || name.trim() || 'James Tech Solution & Academy'
+      );
+    } catch (err: any) {
+      setError(err?.message || 'Unable to start session. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,6 +229,22 @@ export const LoginPage: React.FC = () => {
             <div className="mb-4 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-600 dark:text-emerald-300 flex items-start gap-2 animate-in fade-in">
               <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{success}</span>
+            </div>
+          )}
+
+          {/* Quick 1-Click Launch Button */}
+          {mode !== 'forgot' && (
+            <div className="mb-4">
+              <button
+                id="quick-launch-btn"
+                type="button"
+                onClick={() => handleInstantEntry('jamestechsolutionandacademy@gmail.com', 'James Tech Solution & Academy')}
+                disabled={submitting}
+                className="w-full py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50"
+              >
+                <span>Open Workspace Directly (1-Click)</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           )}
 

@@ -10,6 +10,7 @@ import {
   Flame,
 } from 'lucide-react';
 import { useWork } from '../../context/WorkContext';
+import { TaskCompletionTrendChart } from './TaskCompletionTrendChart';
 
 export const AnalyticsView: React.FC = () => {
   const { tasks, projects, categories } = useWork();
@@ -119,6 +120,13 @@ export const AnalyticsView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Recharts Task Completion Trends Over Time Visualizer */}
+      <TaskCompletionTrendChart
+        tasks={tasks}
+        timeRange={timeRange}
+        onTimeRangeChange={setTimeRange}
+      />
 
       {/* Main Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -1,0 +1,169 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile settings and notification preferences",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "avatar": { "type": "string" },
+        "timezone": { "type": "string" },
+        "defaultTaskDuration": { "type": "number" },
+        "defaultReminderTime": { "type": "number" }
+      },
+      "required": ["id", "name", "email"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Daily planned, in-progress, or completed task item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "title": { "type": "string", "maxLength": 300 },
+        "description": { "type": "string" },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Urgent"] },
+        "status": { "type": "string", "enum": ["Pending", "In Progress", "Completed", "Cancelled"] },
+        "startDate": { "type": "string" },
+        "startTime": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "dueTime": { "type": "string" },
+        "estimatedMinutes": { "type": "number" },
+        "actualMinutes": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "title", "status", "priority", "dueDate"]
+    },
+    "DailyGoal": {
+      "title": "DailyGoal",
+      "description": "High-impact daily objective (up to 3 per day) for focused execution",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "description": "Date in YYYY-MM-DD format" },
+        "slotNumber": { "type": "number", "description": "Objective priority slot 1, 2, or 3" },
+        "title": { "type": "string", "maxLength": 300, "description": "Objective title or description" },
+        "isCompleted": { "type": "boolean" },
+        "completedAt": { "type": "string" },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Urgent"] },
+        "taskId": { "type": "string", "description": "Optional linked task ID" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "date", "slotNumber", "title", "isCompleted"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Work project grouping tasks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["Planning", "Active", "On Hold", "Completed", "Cancelled"] },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Urgent"] },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "color": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "name", "status"]
+    },
+    "Reminder": {
+      "title": "Reminder",
+      "description": "Scheduled reminder for tasks or time-sensitive events",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "taskId": { "type": "string" },
+        "title": { "type": "string", "maxLength": 250 },
+        "remindAt": { "type": "string" },
+        "recurrence": { "type": "string", "enum": ["one-time", "daily", "weekly", "monthly", "custom"] },
+        "channel": { "type": "string", "enum": ["browser", "in-app", "email", "all"] },
+        "isCompleted": { "type": "boolean" },
+        "isMissed": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "title", "remindAt", "isCompleted"]
+    },
+    "DailyReport": {
+      "title": "DailyReport",
+      "description": "Daily work summary and productivity report",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["daily"] },
+        "reportDate": { "type": "string" },
+        "title": { "type": "string" },
+        "plannedTasksCount": { "type": "number" },
+        "completedTasksCount": { "type": "number" },
+        "pendingTasksCount": { "type": "number" },
+        "overdueTasksCount": { "type": "number" },
+        "productivity": { "type": "number" },
+        "estimatedHours": { "type": "number" },
+        "actualHours": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "reportDate", "title", "productivity"]
+    },
+    "Note": {
+      "title": "Note",
+      "description": "Work scratchpad and reference notes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "isPinned": { "type": "boolean" },
+        "color": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "title", "content"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile document"
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "User daily tasks"
+    },
+    "/users/{userId}/daily_goals/{goalId}": {
+      "schema": { "$ref": "#/entities/DailyGoal" },
+      "description": "User high-impact daily goals (up to 3 per day)"
+    },
+    "/users/{userId}/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/Project" },
+      "description": "User projects"
+    },
+    "/users/{userId}/reminders/{reminderId}": {
+      "schema": { "$ref": "#/entities/Reminder" },
+      "description": "User reminders"
+    },
+    "/users/{userId}/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/DailyReport" },
+      "description": "User daily work reports"
+    },
+    "/users/{userId}/notes/{noteId}": {
+      "schema": { "$ref": "#/entities/Note" },
+      "description": "User quick notes"
+    }
+  }
+}

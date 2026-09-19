@@ -19,6 +19,7 @@ import {
 import { useWork } from '../../context/WorkContext';
 import { useAuth } from '../../context/AuthContext';
 import { WorkflowBanner } from '../common/WorkflowBanner';
+import { DailyGoalsWidget } from './DailyGoalsWidget';
 import { TaskItem, Priority } from '../../types';
 
 export const DashboardView: React.FC = () => {
@@ -221,6 +222,9 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Daily High-Impact Goals Widget */}
+      <DailyGoalsWidget date={todayStr} />
 
       {/* Progress & Next Reminder Hero Strip */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

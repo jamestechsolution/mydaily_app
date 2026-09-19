@@ -20,8 +20,11 @@ import {
   List as ListIcon,
   Tag,
   AlertTriangle,
+  WifiOff,
+  RefreshCw,
 } from 'lucide-react';
 import { useWork } from '../../context/WorkContext';
+import { useOfflineSync } from '../../hooks/useOfflineSync';
 import { Priority, TaskStatus, TaskItem } from '../../types';
 
 export const WorkView: React.FC = () => {
@@ -41,6 +44,8 @@ export const WorkView: React.FC = () => {
     pauseStopwatch,
     stopAndSaveStopwatch,
   } = useWork();
+
+  const { isOnline, queueLength, isSyncing, triggerSync } = useOfflineSync();
 
   const todayStr = '2026-09-15';
 
@@ -351,6 +356,54 @@ export const WorkView: React.FC = () => {
         )}
       </div>
 
+      {/* Offline Status & Local Cache Synchronization Notice */}
+      {!isOnline && (
+        <div
+          id="workview-offline-alert"
+          className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-850 flex items-center justify-between gap-3 text-xs text-amber-800 dark:text-amber-200"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-xl bg-amber-200/60 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">
+              <WifiOff className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-bold">Offline Workspace Active</p>
+              <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80">
+                You can create, edit, reorder, and complete tasks seamlessly. All actions are cached locally and will auto-sync when online.
+                {queueLength > 0 && ` (${queueLength} changes queued)`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isOnline && queueLength > 0 && (
+        <div
+          id="workview-sync-alert"
+          className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-850 flex items-center justify-between gap-3 text-xs text-indigo-800 dark:text-indigo-200"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-xl bg-indigo-200/60 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            </div>
+            <div>
+              <p className="font-bold">Online Connection Restored</p>
+              <p className="text-[11px] text-indigo-700/80 dark:text-indigo-300/80">
+                {queueLength} task change{queueLength === 1 ? '' : 's'} recorded offline ready to sync with your Firestore database.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => triggerSync()}
+            disabled={isSyncing}
+            className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Syncing...' : 'Sync Now'}</span>
+          </button>
+        </div>
+      )}
+
       {/* Content: List or Board */}
       {viewMode === 'list' ? (
         <div className="space-y-2.5">
@@ -487,8 +540,12 @@ export const WorkView: React.FC = () => {
                       ) : (
                         <Play className="w-3.5 h-3.5 fill-current" />
                       )}
-                      <span className="hidden sm:inline">
-                        {isTimerRunning ? 'Pause' : isTimerPaused ? 'Resume' : 'Track'}
+                      <span>
+                        {isTimerRunning
+                          ? `Pause (${Math.floor(stopwatch.elapsedSeconds / 60)}:${(stopwatch.elapsedSeconds % 60).toString().padStart(2, '0')})`
+                          : isTimerPaused
+                          ? `Resume (${Math.floor(stopwatch.elapsedSeconds / 60)}:${(stopwatch.elapsedSeconds % 60).toString().padStart(2, '0')})`
+                          : 'Track'}
                       </span>
                     </button>
 
@@ -497,11 +554,11 @@ export const WorkView: React.FC = () => {
                         onClick={async () => {
                           await stopAndSaveStopwatch();
                         }}
-                        className="p-2 rounded-xl text-xs font-semibold flex items-center gap-1 bg-rose-600 text-white shadow-xs hover:bg-rose-700 transition-colors"
+                        className="p-2 px-2.5 rounded-xl text-xs font-semibold flex items-center gap-1 bg-rose-600 text-white shadow-xs hover:bg-rose-700 transition-colors"
                         title="Stop & Log Time to Task's Actual Time"
                       >
                         <Square className="w-3.5 h-3.5 fill-current" />
-                        <span className="hidden sm:inline">Stop</span>
+                        <span>Stop & Save</span>
                       </button>
                     )}
 

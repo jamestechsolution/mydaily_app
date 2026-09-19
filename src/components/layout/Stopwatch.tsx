@@ -66,10 +66,15 @@ export const Stopwatch: React.FC = () => {
 
   // Stop the timer and link active time to the 'Actual Time' field of the task
   const handleStopAndSave = async () => {
+    if (isIdle || stopwatch.elapsedSeconds <= 0) {
+      setNotificationBanner('Timer was at 0s. Start the stopwatch to track actual time.');
+      setTimeout(() => setNotificationBanner(null), 4000);
+      return;
+    }
     const res = await stop(markCompleteOnStop);
     if (res) {
       setNotificationBanner(`Logged +${res.minutesSaved}m Actual Time to "${res.taskTitle}"`);
-      setTimeout(() => setNotificationBanner(null), 4000);
+      setTimeout(() => setNotificationBanner(null), 5000);
     }
     setIsOpen(false);
   };
@@ -452,6 +457,22 @@ export const Stopwatch: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Global Toast Banner for Stopwatch Time Logging */}
+      {notificationBanner && (
+        <div className="fixed top-18 right-4 sm:right-8 z-50 animate-in slide-in-from-top-3 fade-in duration-300 pointer-events-auto">
+          <div className="flex items-center gap-3 py-2.5 px-4 rounded-2xl bg-emerald-600 text-white shadow-xl shadow-emerald-600/30 border border-emerald-500 text-xs font-semibold">
+            <CheckCircle2 className="w-4 h-4 text-emerald-100 shrink-0" />
+            <span>{notificationBanner}</span>
+            <button
+              onClick={() => setNotificationBanner(null)}
+              className="ml-1 p-0.5 hover:bg-emerald-700 rounded-md transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       )}

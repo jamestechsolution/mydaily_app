@@ -180,3 +180,18 @@ export interface StopwatchState {
   elapsedSeconds: number;
   lastTickTimestamp: number | null;
 }
+
+export interface DailyGoalItem {
+  id: string;
+  userId: string;
+  date: string; // YYYY-MM-DD
+  slotNumber: number; // 1, 2, or 3
+  title: string;
+  isCompleted: boolean;
+  completedAt?: string;
+  priority?: Priority;
+  taskId?: string; // Optional linked task ID
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}

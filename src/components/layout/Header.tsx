@@ -20,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import { NotificationCenter } from '../common/NotificationCenter';
 import { Stopwatch } from './Stopwatch';
 import { PWAInstallButton } from '../common/PWAInstallButton';
+import { OfflineSyncBar } from '../common/OfflineSyncBar';
 
 interface HeaderProps {
   onOpenMobileMenu: () => void;
@@ -130,6 +131,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, openAuthModal 
 
       {/* Stopwatch & Action Controls */}
       <div className="flex items-center gap-2">
+        {/* Offline Caching & Cloud Synchronization Indicator */}
+        <OfflineSyncBar />
+
         {/* Persistent Task Stopwatch with HH:MM:SS and Pulse Animation */}
         <Stopwatch />
 
