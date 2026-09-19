@@ -1,6 +1,6 @@
 {
   "name": "Daily Work Manager",
-  "description": "Plan, record, manage, monitor, and report your daily work with real database persistence, reminders, productivity analytics, and automated reports.",
+  "description": "Plan Better • Work Smarter • Achieve More. Professional Daily Work Management & Productivity application with task planning, real-time tracking, reminders, and comprehensive reports.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

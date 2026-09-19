@@ -14,9 +14,14 @@ import {
   X,
   CalendarRange,
   FileSpreadsheet,
+  SunMedium,
+  CalendarDays,
+  Tags,
+  User,
 } from 'lucide-react';
 import { useWork } from '../../context/WorkContext';
 import { ActiveTab } from '../../types';
+import { getTodayDateString } from '../../utils/dateUtils';
 
 interface MobileNavProps {
   isOpen: boolean;
@@ -28,7 +33,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ isOpen, onClose, openAuthM
   const { activeTab, setActiveTab, tasks, reminders, setIsAiModalOpen } = useWork();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const todayStr = '2026-09-15';
+  const todayStr = getTodayDateString();
   const pendingCount = tasks.filter(
     (t) => t.dueDate === todayStr && t.status !== 'Completed' && t.status !== 'Cancelled'
   ).length;
@@ -40,12 +45,18 @@ export const MobileNav: React.FC<MobileNavProps> = ({ isOpen, onClose, openAuthM
   };
 
   const moreItems: { id: ActiveTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+    { id: 'today', label: "Today's Tasks", icon: SunMedium },
+    { id: 'planner', label: 'Weekly Planner', icon: CalendarDays },
+    { id: 'categories', label: 'Categories', icon: Tags },
     { id: 'projects', label: 'Projects', icon: FolderKanban },
     { id: 'reminders', label: 'Reminders', icon: Bell },
+    { id: 'daily-reports', label: 'Daily Reports', icon: FileText },
     { id: 'weekly-reports', label: 'Weekly Reports', icon: CalendarRange },
     { id: 'monthly-reports', label: 'Monthly Reports', icon: FileSpreadsheet },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'notes', label: 'Notes', icon: StickyNote },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'profile', label: 'Profile', icon: User },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 

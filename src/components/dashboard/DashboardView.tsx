@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   CheckCircle2,
   Clock,
@@ -15,12 +15,19 @@ import {
   Tag,
   Check,
   ChevronRight,
+  Layers,
 } from 'lucide-react';
 import { useWork } from '../../context/WorkContext';
 import { useAuth } from '../../context/AuthContext';
 import { WorkflowBanner } from '../common/WorkflowBanner';
 import { DailyGoalsWidget } from './DailyGoalsWidget';
 import { TaskItem, Priority } from '../../types';
+import {
+  getTodayDateString,
+  formatDateLong,
+  getTimeOfDayGreeting,
+  isTaskOverdue,
+} from '../../utils/dateUtils';
 
 export const DashboardView: React.FC = () => {
   const {
@@ -36,23 +43,33 @@ export const DashboardView: React.FC = () => {
   } = useWork();
 
   const { profile } = useAuth();
-  const todayStr = '2026-09-15';
+  const todayStr = getTodayDateString();
+  const todayDateFormatted = formatDateLong(todayStr);
+  const greeting = getTimeOfDayGreeting();
 
   const [chartPeriod, setChartPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
   // Filter tasks for today and upcoming
-  const todayTasks = tasks.filter((t) => t.dueDate === todayStr);
-  const upcomingTasks = tasks
-    .filter((t) => t.dueDate > todayStr && t.status !== 'Completed')
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const todayTasks = useMemo(() => tasks.filter((t) => t.dueDate === todayStr), [tasks, todayStr]);
+  const completedToday = useMemo(() => todayTasks.filter((t) => t.status === 'Completed').length, [todayTasks]);
+  const inProgressToday = useMemo(() => todayTasks.filter((t) => t.status === 'In Progress').length, [todayTasks]);
+  const pendingToday = useMemo(() => todayTasks.filter((t) => t.status === 'Pending').length, [todayTasks]);
 
-  const completedToday = todayTasks.filter((t) => t.status === 'Completed').length;
-  const inProgressToday = todayTasks.filter((t) => t.status === 'In Progress').length;
-  const pendingToday = todayTasks.filter((t) => t.status === 'Pending').length;
-  const overdueTasks = tasks.filter((t) => t.dueDate < todayStr && t.status !== 'Completed');
+  const upcomingTasks = useMemo(
+    () =>
+      tasks
+        .filter((t) => t.dueDate > todayStr && t.status !== 'Completed')
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    [tasks, todayStr]
+  );
+
+  const totalTasksCount = tasks.length;
+  const completedTasksCount = tasks.filter((t) => t.status === 'Completed').length;
+  const pendingTasksCount = tasks.filter((t) => t.status === 'Pending' || t.status === 'In Progress').length;
+  const overdueTasks = useMemo(() => tasks.filter((t) => isTaskOverdue(t.dueDate, t.dueTime, t.status)), [tasks]);
 
   const completionRate =
-    todayTasks.length > 0 ? Math.round((completedToday / todayTasks.length) * 100) : 100;
+    totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 100;
 
   // Next upcoming reminder
   const nextReminder = reminders
@@ -88,12 +105,12 @@ export const DashboardView: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] tracking-tight">
-              Good Morning, {profile?.name ? profile.name.split(' ')[0] : 'User'} 👋
+              {greeting}, {profile?.name ? profile.name.split(' ')[0] : 'User'} 👋
             </h1>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
             <span className="font-medium text-slate-700 dark:text-slate-300">
-              Tuesday, September 15, 2026
+              {todayDateFormatted}
             </span>
             <span>•</span>
             <span className="italic text-indigo-600 dark:text-indigo-400">
@@ -142,61 +159,48 @@ export const DashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
+      {/* KPI Cards Grid - The 6 Required Statistics Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {/* Today's Tasks */}
+        {/* 1. Total Tasks */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-            Today's Tasks
+          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+            Total Tasks
           </span>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold text-slate-900 dark:text-white font-['Outfit']">
-              {todayTasks.length}
+              {totalTasksCount}
             </span>
-            <span className="text-[10px] text-slate-400 font-medium">Planned</span>
+            <Layers className="w-4 h-4 text-slate-400" />
           </div>
         </div>
 
-        {/* Completed */}
+        {/* 2. Completed */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
           <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block mb-1">
             Completed
           </span>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-['Outfit']">
-              {completedToday}
+              {completedTasksCount}
             </span>
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
         </div>
 
-        {/* In Progress */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block mb-1">
-            In Progress
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 font-['Outfit']">
-              {inProgressToday}
-            </span>
-            <Clock className="w-4 h-4 text-indigo-500" />
-          </div>
-        </div>
-
-        {/* Pending */}
+        {/* 3. Pending */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
           <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider block mb-1">
             Pending
           </span>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold text-amber-600 dark:text-amber-400 font-['Outfit']">
-              {pendingToday}
+              {pendingTasksCount}
             </span>
-            <Flame className="w-4 h-4 text-amber-500" />
+            <Clock className="w-4 h-4 text-amber-500" />
           </div>
         </div>
 
-        {/* Overdue */}
+        {/* 4. Overdue */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
           <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider block mb-1">
             Overdue
@@ -209,7 +213,7 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
 
-        {/* Completion Rate */}
+        {/* 5. Completion Rate */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
           <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block mb-1">
             Completion Rate
@@ -219,6 +223,19 @@ export const DashboardView: React.FC = () => {
               {completionRate}%
             </span>
             <TrendingUp className="w-4 h-4 text-indigo-500" />
+          </div>
+        </div>
+
+        {/* 6. Today's Tasks */}
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+          <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block mb-1">
+            Today's Tasks
+          </span>
+          <div className="flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-slate-900 dark:text-white font-['Outfit']">
+              {todayTasks.length}
+            </span>
+            <Calendar className="w-4 h-4 text-indigo-500" />
           </div>
         </div>
       </div>

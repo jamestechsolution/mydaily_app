@@ -26,6 +26,13 @@ import {
 import { useWork } from '../../context/WorkContext';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
 import { Priority, TaskStatus, TaskItem } from '../../types';
+import {
+  getTodayDateString,
+  getTomorrowDateString,
+  getWeekDates,
+  isTaskOverdue,
+} from '../../utils/dateUtils';
+import { DeleteConfirmModal } from '../common/DeleteConfirmModal';
 
 export const WorkView: React.FC = () => {
   const {
@@ -47,16 +54,22 @@ export const WorkView: React.FC = () => {
 
   const { isOnline, queueLength, isSyncing, triggerSync } = useOfflineSync();
 
-  const todayStr = '2026-09-15';
+  const todayStr = getTodayDateString();
+  const tomorrowStr = getTomorrowDateString();
+  const weekDates = useMemo(() => getWeekDates(todayStr), [todayStr]);
+  const weekStart = weekDates[0]?.dateString || todayStr;
+  const weekEnd = weekDates[6]?.dateString || todayStr;
 
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'tomorrow' | 'week' | 'overdue'>('today');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'tomorrow' | 'week' | 'overdue'>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'dueDate' | 'priority' | 'title' | 'created'>('dueDate');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'priority' | 'dueDate'>('newest');
+
+  const [taskToDelete, setTaskToDelete] = useState<{ id: string; title: string } | null>(null);
 
   const filteredTasks = useMemo(() => {
     return tasks
@@ -65,18 +78,18 @@ export const WorkView: React.FC = () => {
         if (
           searchQuery &&
           !t.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-          !(t.description || '').toLowerCase().includes(searchQuery.toLowerCase())
+          !(t.description || '').toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !(t.tags || []).some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
         ) {
           return false;
         }
 
         // Date filter
         if (dateFilter === 'today' && t.dueDate !== todayStr) return false;
-        if (dateFilter === 'tomorrow' && t.dueDate !== '2026-09-16') return false;
-        if (dateFilter === 'overdue' && (t.dueDate >= todayStr || t.status === 'Completed')) return false;
+        if (dateFilter === 'tomorrow' && t.dueDate !== tomorrowStr) return false;
+        if (dateFilter === 'overdue' && !isTaskOverdue(t.dueDate, t.dueTime, t.status)) return false;
         if (dateFilter === 'week') {
-          // Check if between 2026-09-14 and 2026-09-20
-          if (t.dueDate < '2026-09-14' || t.dueDate > '2026-09-20') return false;
+          if (t.dueDate < weekStart || t.dueDate > weekEnd) return false;
         }
 
         // Project filter
@@ -86,7 +99,13 @@ export const WorkView: React.FC = () => {
         if (categoryFilter !== 'all' && t.categoryId !== categoryFilter) return false;
 
         // Status filter
-        if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+        if (statusFilter !== 'all') {
+          if (statusFilter === 'Overdue') {
+            if (!isTaskOverdue(t.dueDate, t.dueTime, t.status)) return false;
+          } else if (t.status !== statusFilter) {
+            return false;
+          }
+        }
 
         // Priority filter
         if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
@@ -103,9 +122,10 @@ export const WorkView: React.FC = () => {
           const weight: Record<Priority, number> = { Urgent: 4, High: 3, Medium: 2, Low: 1 };
           return weight[b.priority] - weight[a.priority];
         }
-        if (sortBy === 'title') {
-          return a.title.localeCompare(b.title);
+        if (sortBy === 'oldest') {
+          return a.createdAt.localeCompare(b.createdAt);
         }
+        // newest default
         return b.createdAt.localeCompare(a.createdAt);
       });
   }, [
@@ -118,6 +138,9 @@ export const WorkView: React.FC = () => {
     priorityFilter,
     sortBy,
     todayStr,
+    tomorrowStr,
+    weekStart,
+    weekEnd,
   ]);
 
   const handleDuplicate = async (task: TaskItem) => {
@@ -306,6 +329,7 @@ export const WorkView: React.FC = () => {
               <option value="Pending">Pending</option>
               <option value="In Progress">In Progress</option>
               <option value="Completed">Completed</option>
+              <option value="Overdue">Overdue</option>
               <option value="Cancelled">Cancelled</option>
             </select>
           </div>
@@ -332,10 +356,10 @@ export const WorkView: React.FC = () => {
               onChange={(e) => setSortBy(e.target.value as any)}
               className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-slate-700 dark:text-slate-300 outline-none"
             >
-              <option value="dueDate">Due Date</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
               <option value="priority">Priority</option>
-              <option value="title">Title</option>
-              <option value="created">Recently Created</option>
+              <option value="dueDate">Due date</option>
             </select>
           </div>
         </div>
@@ -582,7 +606,7 @@ export const WorkView: React.FC = () => {
                     </button>
 
                     <button
-                      onClick={() => deleteTask(task.id)}
+                      onClick={() => setTaskToDelete({ id: task.id, title: task.title })}
                       className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                       title="Delete"
                     >
@@ -630,7 +654,7 @@ export const WorkView: React.FC = () => {
                     return (
                       <div
                         key={task.id}
-                        className="p-3 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-xs transition-shadow cursor-pointer"
+                        className="p-3 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-xs transition-shadow cursor-pointer relative group"
                         onClick={() => {
                           setEditingTaskId(task.id);
                           setIsTaskModalOpen(true);
@@ -644,10 +668,22 @@ export const WorkView: React.FC = () => {
                           >
                             {task.priority}
                           </span>
-                          <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
-                            <Clock className="w-3 h-3" />
-                            {task.dueTime}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                              <Clock className="w-3 h-3" />
+                              {task.dueTime}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTaskToDelete({ id: task.id, title: task.title });
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-500 rounded transition-opacity"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
 
                         <h4 className="text-xs font-semibold text-slate-900 dark:text-white line-clamp-2">
@@ -672,6 +708,21 @@ export const WorkView: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={!!taskToDelete}
+        title="Delete Task"
+        message="Are you sure you want to delete this task? This action cannot be undone."
+        itemTitle={taskToDelete?.title}
+        onConfirm={async () => {
+          if (taskToDelete) {
+            await deleteTask(taskToDelete.id);
+            setTaskToDelete(null);
+          }
+        }}
+        onClose={() => setTaskToDelete(null)}
+      />
     </div>
   );
 };

@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { useWork } from '../../context/WorkContext';
 import { TaskItem, Priority, TaskStatus, ReminderRecurrence } from '../../types';
+import { getTodayDateString } from '../../utils/dateUtils';
+import { DeleteConfirmModal } from '../common/DeleteConfirmModal';
 
 export const TaskModal: React.FC = () => {
   const {
@@ -29,7 +31,8 @@ export const TaskModal: React.FC = () => {
     deleteTask,
   } = useWork();
 
-  const todayStr = '2026-09-15';
+  const todayStr = getTodayDateString();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -588,7 +591,7 @@ export const TaskModal: React.FC = () => {
               <button
                 id="delete-task-btn"
                 type="button"
-                onClick={handleDelete}
+                onClick={() => setShowDeleteConfirm(true)}
                 className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex items-center gap-1.5"
               >
                 <Trash2 className="w-4 h-4" />
@@ -614,11 +617,24 @@ export const TaskModal: React.FC = () => {
                 type="submit"
                 className="px-5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/20 transition-colors"
               >
-                {editingTaskId ? 'Save Changes' : 'Create Work Item'}
+                Save Task
               </button>
             </div>
           </div>
         </form>
+
+        {/* Delete Confirmation Modal */}
+        <DeleteConfirmModal
+          isOpen={showDeleteConfirm}
+          title="Delete Task"
+          message="Are you sure you want to delete this task? This action cannot be undone."
+          itemTitle={title}
+          onConfirm={async () => {
+            await handleDelete();
+            setShowDeleteConfirm(false);
+          }}
+          onClose={() => setShowDeleteConfirm(false)}
+        />
       </div>
     </div>
   );

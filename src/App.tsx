@@ -25,7 +25,10 @@ import { AuthModal } from './components/auth/AuthModal';
 
 // Views
 import { DashboardView } from './components/dashboard/DashboardView';
+import { TodayView } from './components/today/TodayView';
 import { WorkView } from './components/work/WorkView';
+import { WeeklyPlannerView } from './components/planner/WeeklyPlannerView';
+import { CategoriesView } from './components/categories/CategoriesView';
 import { ProjectsView } from './components/projects/ProjectsView';
 import { CalendarView } from './components/calendar/CalendarView';
 import { RemindersView } from './components/reminders/RemindersView';
@@ -34,10 +37,13 @@ import { WeeklyReportView } from './components/reports/WeeklyReportView';
 import { MonthlyReportView } from './components/reports/MonthlyReportView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { NotesView } from './components/notes/NotesView';
+import { NotificationsView } from './components/notifications/NotificationsView';
+import { ProfileView } from './components/profile/ProfileView';
 import { SettingsView } from './components/settings/SettingsView';
+import { LandingPageView } from './components/landing/LandingPageView';
 
 const MainLayout: React.FC = () => {
-  const { activeTab } = useWork();
+  const { activeTab, setActiveTab } = useWork();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -65,7 +71,10 @@ const MainLayout: React.FC = () => {
           className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 scrollbar-thin pb-24 md:pb-8"
         >
           {activeTab === 'dashboard' && <DashboardView />}
+          {activeTab === 'today' && <TodayView />}
           {activeTab === 'work' && <WorkView />}
+          {activeTab === 'planner' && <WeeklyPlannerView />}
+          {activeTab === 'categories' && <CategoriesView />}
           {activeTab === 'projects' && <ProjectsView />}
           {activeTab === 'calendar' && <CalendarView />}
           {activeTab === 'reminders' && <RemindersView />}
@@ -74,7 +83,10 @@ const MainLayout: React.FC = () => {
           {activeTab === 'monthly-reports' && <MonthlyReportView />}
           {activeTab === 'analytics' && <AnalyticsView />}
           {activeTab === 'notes' && <NotesView />}
+          {activeTab === 'notifications' && <NotificationsView />}
+          {activeTab === 'profile' && <ProfileView />}
           {activeTab === 'settings' && <SettingsView />}
+          {activeTab === 'landing' && <LandingPageView onGetStarted={() => setActiveTab('dashboard')} />}
         </main>
       </div>
 
@@ -97,6 +109,7 @@ const MainLayout: React.FC = () => {
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
+  const [showLoginPage, setShowLoginPage] = useState(false);
 
   if (loading) {
     return (
@@ -118,9 +131,12 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Display Login Page first when opened and user is not authenticated
+  // If user is not logged in, show Landing Page or Login Page
   if (!user) {
-    return <LoginPage />;
+    if (showLoginPage) {
+      return <LoginPage onBackToLanding={() => setShowLoginPage(false)} />;
+    }
+    return <LandingPageView onGetStarted={() => setShowLoginPage(true)} />;
   }
 
   return (

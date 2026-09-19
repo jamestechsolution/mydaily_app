@@ -15,10 +15,15 @@ import {
   ChevronRight,
   LogOut,
   UserCheck,
+  SunMedium,
+  CalendarDays,
+  Tags,
+  User,
 } from 'lucide-react';
 import { useWork } from '../../context/WorkContext';
 import { useAuth } from '../../context/AuthContext';
 import { ActiveTab } from '../../types';
+import { getTodayDateString } from '../../utils/dateUtils';
 import { PWAInstallButton } from '../common/PWAInstallButton';
 
 interface SidebarProps {
@@ -28,15 +33,16 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed, openAuthModal }) => {
-  const { activeTab, setActiveTab, tasks, reminders, setIsAiModalOpen } = useWork();
+  const { activeTab, setActiveTab, tasks, reminders, notifications, setIsAiModalOpen } = useWork();
   const { user, profile, logout } = useAuth();
 
-  const todayStr = '2026-09-15';
+  const todayStr = getTodayDateString();
   const pendingTodayCount = tasks.filter(
     (t) => t.dueDate === todayStr && t.status !== 'Completed' && t.status !== 'Cancelled'
   ).length;
 
   const activeRemindersCount = reminders.filter((r) => !r.isCompleted).length;
+  const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
 
   const navItems: {
     id: ActiveTab;
@@ -47,13 +53,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed, openA
   }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     {
-      id: 'work',
-      label: 'My Work',
-      icon: CheckSquare,
+      id: 'today',
+      label: "Today's Tasks",
+      icon: SunMedium,
       badge: pendingTodayCount > 0 ? pendingTodayCount : undefined,
       badgeColor: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300',
     },
+    { id: 'work', label: 'All Tasks', icon: CheckSquare },
+    { id: 'planner', label: 'Weekly Planner', icon: CalendarDays },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
+    { id: 'categories', label: 'Categories', icon: Tags },
     { id: 'projects', label: 'Projects', icon: FolderKanban },
     {
       id: 'reminders',
@@ -67,6 +76,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed, openA
     { id: 'monthly-reports', label: 'Monthly Reports', icon: FileSpreadsheet },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'notes', label: 'Notes', icon: StickyNote },
+    {
+      id: 'notifications',
+      label: 'Notifications',
+      icon: Bell,
+      badge: unreadNotificationsCount > 0 ? unreadNotificationsCount : undefined,
+      badgeColor: 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300',
+    },
+    { id: 'profile', label: 'Profile', icon: User },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 

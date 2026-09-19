@@ -26,12 +26,10 @@ export const DEFAULT_CATEGORIES: CategoryItem[] = [
   { id: 'cat-work', name: 'Work', color: '#3b82f6', isDefault: true },
   { id: 'cat-study', name: 'Study', color: '#8b5cf6', isDefault: true },
   { id: 'cat-personal', name: 'Personal', color: '#10b981', isDefault: true },
-  { id: 'cat-programming', name: 'Programming', color: '#6366f1', isDefault: true },
+  { id: 'cat-development', name: 'Development', color: '#6366f1', isDefault: true },
   { id: 'cat-meetings', name: 'Meetings', color: '#f59e0b', isDefault: true },
-  { id: 'cat-research', name: 'Research', color: '#06b6d4', isDefault: true },
-  { id: 'cat-business', name: 'Business', color: '#ec4899', isDefault: true },
-  { id: 'cat-freelancing', name: 'Freelancing', color: '#14b8a6', isDefault: true },
-  { id: 'cat-admin', name: 'Administration', color: '#64748b', isDefault: true },
+  { id: 'cat-projects', name: 'Projects', color: '#06b6d4', isDefault: true },
+  { id: 'cat-health', name: 'Health', color: '#ec4899', isDefault: true },
   { id: 'cat-other', name: 'Other', color: '#94a3b8', isDefault: true },
 ];
 

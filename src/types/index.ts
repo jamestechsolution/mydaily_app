@@ -1,6 +1,6 @@
 export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
 
-export type TaskStatus = 'Pending' | 'In Progress' | 'Completed' | 'Cancelled';
+export type TaskStatus = 'Pending' | 'In Progress' | 'Completed' | 'Cancelled' | 'Overdue';
 
 export type ProjectStatus = 'Planning' | 'Active' | 'On Hold' | 'Completed' | 'Cancelled';
 
@@ -163,16 +163,23 @@ export interface AppNotification {
 
 export type ActiveTab =
   | 'dashboard'
+  | 'today'
   | 'work'
+  | 'tasks'
   | 'calendar'
+  | 'planner'
+  | 'analytics'
+  | 'categories'
+  | 'notifications'
+  | 'profile'
+  | 'settings'
   | 'projects'
   | 'reminders'
   | 'daily-reports'
   | 'weekly-reports'
   | 'monthly-reports'
-  | 'analytics'
   | 'notes'
-  | 'settings';
+  | 'landing';
 
 export interface StopwatchState {
   taskId: string | null;
